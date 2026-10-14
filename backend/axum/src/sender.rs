@@ -1,0 +1,144 @@
+//! Sends a mail through msmtp, the SMTP client the launcher installs with this application. The
+//! account is written for each mail in a file only this process can read, removed right after.
+
+use crate::{
+    message::Message,
+    settings::{Security, Smtp},
+};
+use std::{
+    env,
+    os::unix::fs::OpenOptionsExt,
+    path::{Path, PathBuf},
+    process::Stdio,
+    sync::atomic::{AtomicU64, Ordering},
+    time::Duration,
+};
+use tokio::{io::AsyncWriteExt, process::Command};
+
+const SEND_TIMEOUT: Duration = Duration::from_secs(60);
+static NEXT: AtomicU64 = AtomicU64::new(0);
+
+/// `NAS_MAIL_MSMTP`, else `msmtp` from the PATH.
+pub fn program() -> PathBuf {
+    env::var_os("NAS_MAIL_MSMTP")
+        .filter(|value| !value.is_empty())
+        .map_or_else(|| PathBuf::from("msmtp"), PathBuf::from)
+}
+
+/// Whether the program can be found: a path as it is, a bare name in the PATH.
+pub fn available(program: &Path) -> bool {
+    if program.components().count() > 1 {
+        return program.is_file();
+    }
+    env::var_os("PATH").is_some_and(|paths| {
+        env::split_paths(&paths).any(|directory| directory.join(program).is_file())
+    })
+}
+
+/// A value of the msmtp configuration, quoted, with its quotes and backslashes escaped.
+fn quoted(value: &str) -> String {
+    format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
+}
+
+fn on_off(value: bool) -> &'static str {
+    if value {
+        "on"
+    } else {
+        "off"
+    }
+}
+
+/// The msmtp account of the settings.
+pub fn configuration(smtp: &Smtp) -> String {
+    let mut text = format!(
+        "account nas\nhost {}\nport {}\nfrom {}\ntls {}\ntls_starttls {}\ntls_trust_file system\n",
+        quoted(&smtp.host),
+        smtp.port,
+        quoted(&smtp.from),
+        on_off(smtp.security != Security::None),
+        on_off(smtp.security == Security::Starttls),
+    );
+    if smtp.username.is_empty() {
+        text.push_str("auth off\n");
+    } else {
+        text.push_str(&format!(
+            "auth on\nuser {}\npassword {}\n",
+            quoted(&smtp.username),
+            quoted(smtp.password.as_deref().unwrap_or_default())
+        ));
+    }
+    text.push_str("account default : nas\n");
+    text
+}
+
+async fn write_private(path: &Path, text: &str) -> Result<(), String> {
+    let path = path.to_owned();
+    let text = text.to_owned();
+    tokio::task::spawn_blocking(move || {
+        use std::io::Write;
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&path)?;
+        file.write_all(text.as_bytes())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+    .map_err(|error| format!("Unable to write the msmtp account: {error}"))
+}
+
+/// Hands the mail to msmtp and waits for its verdict.
+pub async fn send(program: &Path, smtp: &Smtp, message: &Message<'_>) -> Result<(), String> {
+    if !available(program) {
+        return Err("msmtp is not installed on the NAS.".to_owned());
+    }
+    let account = env::temp_dir().join(format!(
+        "nas-mail-{}-{}.msmtprc",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    ));
+    write_private(&account, &configuration(smtp)).await?;
+    let result = run(program, &account, message).await;
+    let _ = tokio::fs::remove_file(&account).await;
+    result
+}
+
+async fn run(program: &Path, account: &Path, message: &Message<'_>) -> Result<(), String> {
+    let mut child = Command::new(program)
+        .arg("-C")
+        .arg(account)
+        .arg("-t")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()
+        .map_err(|error| format!("Unable to start msmtp: {error}"))?;
+    if let Some(mut input) = child.stdin.take() {
+        input
+            .write_all(message.render().as_bytes())
+            .await
+            .map_err(|error| format!("Unable to hand the mail to msmtp: {error}"))?;
+    }
+    let output = tokio::time::timeout(SEND_TIMEOUT, child.wait_with_output())
+        .await
+        .map_err(|_| "The SMTP server did not answer in time.".to_owned())?
+        .map_err(|error| error.to_string())?;
+    if output.status.success() {
+        return Ok(());
+    }
+    let reason = String::from_utf8_lossy(&output.stderr);
+    Err(reason
+        .lines()
+        .rev()
+        .find(|line| !line.trim().is_empty())
+        .map_or_else(
+            || "msmtp could not send the mail.".to_owned(),
+            |line| line.trim().to_owned(),
+        ))
+}
+
+#[cfg(test)]
+#[path = "../../tests/unit/sender.rs"]
+mod tests;
