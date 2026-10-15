@@ -4,7 +4,7 @@ External application for the NAS launcher, shown as **Email**: it mails the even
 
 Until there is an account able to send (server, sender and at least one recipient) the app shows only the first configuration screen. After that, the sidebar holds the mail folders and, at the bottom, **Settings**, a window with two tabs: **Account** (the SMTP server) and **Notifications** (the automatic mails, each with its own switch).
 
-- **SMTP server**: outgoing server, port, security (SSL/TLS, STARTTLS or none), credentials, sender and recipients, with a test mail. The password is encrypted with AES-GCM in the database; the key sits next to the database in a `.key` file with `0600` permissions.
+- **SMTP server**: outgoing server, port, security (SSL/TLS, STARTTLS or none), credentials, sender and recipients. **Test connection** checks the saved server and TLS settings using `msmtp --serverinfo`; it does not send a message, verify login credentials or add anything to the mail history. The password is encrypted with AES-GCM in the database; the key sits next to the database in a `.key` file with `0600` permissions.
 - **Refused sign-ins**: a mail for every sign-in refused for wrong credentials, even when the notifications of the launcher for these sign-ins are off.
 - **UI updates**: separate switches for update available, installed and failed.
 - **App updates**: a mail when the automatic check of the Application manager finds new versions of the installed apps (event `appUpdatesAvailable`); a check started by hand answers on screen only.
@@ -33,6 +33,6 @@ pnpm run dev
 
 Vite serves the UI on `http://127.0.0.1:1440/` and forwards `api/...` to the backend over a Unix socket. `NAS_APP_SOCKET` changes the path of the socket. The SQLite database uses `NAS_DB_PATH` when set, otherwise `$STATE_DIRECTORY/mail-client.sqlite3`; in development it is created in `backend/data/`.
 
-API: `GET api/status` (msmtp present, configuration complete, `sender` for server and sender only), `GET`/`PUT api/settings`, `POST api/test`, `GET api/mails?folder=sent|trash`, `POST api/mails/{id}/trash` and `/restore`, `DELETE api/mails/{id}` (from the trash only), `DELETE api/trash`.
+API: `GET api/status` (msmtp present, configuration complete, `sender` for server and sender only), `GET`/`PUT api/settings`, `POST api/test` (SMTP/TLS connection check with saved settings; returns 204 on success and sends no mail), `GET api/mails?folder=sent|trash`, `POST api/mails/{id}/trash` and `/restore`, `DELETE api/mails/{id}` (from the trash only), `DELETE api/trash`.
 
 For structure, tests and checks see [DEVELOPMENT.md](DEVELOPMENT.md). The contract with the launcher is in [APPS.md](APPS.md); packaging and release are in [NAS.md](NAS.md).

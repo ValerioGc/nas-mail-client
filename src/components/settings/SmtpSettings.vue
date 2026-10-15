@@ -3,7 +3,7 @@
 import { onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import { useMailSettings } from '@/composables/useMailSettings';
-import { fetchStatus, sendTestMail } from '@/services/mailApi';
+import { fetchStatus, checkSmtpConnection } from '@/services/mailApi';
 import { NasIcon } from '@valeriogc/nas-base-app';
 import server from '@/assets/icons/server.svg?url';
 import type { Security } from '@/types/mail';
@@ -55,7 +55,7 @@ onMounted(async () => {
   try {
     msmtp.value = (await fetchStatus()).msmtp;
   } catch {
-    // Only a hint: the form works without it, and a test mail says what is missing.
+    // Il controllo della connessione segnala anche l'eventuale programma mancante.
   }
 });
 
@@ -94,12 +94,8 @@ async function test() {
   notice.value = null;
   testError.value = null;
   try {
-    const mail = await sendTestMail();
-    if (mail.status === 'sent') {
-      notice.value = t.value.smtp.testSent;
-    } else {
-      testError.value = t.value.smtp.testFailed.replace('{error}', mail.error ?? '');
-    }
+    await checkSmtpConnection();
+    notice.value = t.value.smtp.testConnected;
   } catch (reason) {
     testError.value = t.value.smtp.testFailed.replace(
       '{error}',

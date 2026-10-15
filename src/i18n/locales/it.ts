@@ -69,9 +69,9 @@ export const it = {
     recipientsHint: 'Uno o più indirizzi, separati da virgola.',
     save: 'Salva',
     saved: 'Impostazioni salvate.',
-    test: 'Invia mail di prova',
-    testSent: 'Mail di prova inviata.',
-    testFailed: 'Mail di prova non inviata ({error})',
+    test: 'Prova collegamento',
+    testConnected: 'Collegamento al server SMTP riuscito.',
+    testFailed: 'Collegamento al server SMTP non riuscito ({error})',
   },
   events: {
     intro: 'Mail inviate automaticamente dal NAS ai destinatari configurati.',

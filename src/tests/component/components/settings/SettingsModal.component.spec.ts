@@ -10,7 +10,7 @@ vi.mock('@/services/mailApi', () => ({
   fetchSettings: vi.fn(),
   fetchStatus: vi.fn(),
   saveSettings: vi.fn(),
-  sendTestMail: vi.fn(),
+  checkSmtpConnection: vi.fn(),
 }));
 
 beforeEach(() => {

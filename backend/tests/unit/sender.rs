@@ -106,6 +106,30 @@ async fn hands_the_mail_to_msmtp_with_a_private_account_removed_afterwards() {
 }
 
 #[tokio::test]
+async fn checks_the_connection_in_serverinfo_mode_without_a_message() {
+    let program = fake_msmtp("connection", false);
+    let directory = program.parent().expect("directory").to_owned();
+    check_connection(&program, &smtp("nas@example.com"))
+        .await
+        .expect("connected");
+    assert_eq!(
+        std::fs::read_to_string(directory.join("args"))
+            .expect("args")
+            .trim(),
+        "--serverinfo"
+    );
+    assert!(std::fs::read(directory.join("mail"))
+        .expect("stdin")
+        .is_empty());
+    let account = std::fs::read_to_string(directory.join("path")).expect("path");
+    assert!(
+        !Path::new(account.trim()).exists(),
+        "the account is removed"
+    );
+    std::fs::remove_dir_all(directory).expect("clean");
+}
+
+#[tokio::test]
 async fn reports_why_msmtp_failed_or_that_it_is_missing() {
     let program = fake_msmtp("failed", true);
     let error = send(&program, &smtp(""), &message())

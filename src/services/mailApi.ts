@@ -89,8 +89,8 @@ export async function saveSettings(settings: MailSettings): Promise<SettingsView
   return checked(payload, isSettings);
 }
 
-export async function sendTestMail(): Promise<Mail> {
-  return checked(await call('api/test', { method: 'POST' }), isMail);
+export async function checkSmtpConnection(): Promise<void> {
+  await call('api/test', { method: 'POST' });
 }
 
 export async function fetchMails(folder: Folder): Promise<Mail[]> {

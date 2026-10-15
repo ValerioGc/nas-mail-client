@@ -69,9 +69,9 @@ export const en = {
     recipientsHint: 'One or more addresses, separated by commas.',
     save: 'Save',
     saved: 'Settings saved.',
-    test: 'Send test mail',
-    testSent: 'Test mail sent.',
-    testFailed: 'Test mail not sent ({error})',
+    test: 'Test connection',
+    testConnected: 'SMTP server connection successful.',
+    testFailed: 'SMTP server connection failed ({error})',
   },
   events: {
     intro: 'Mails sent automatically by the NAS to the configured recipients.',

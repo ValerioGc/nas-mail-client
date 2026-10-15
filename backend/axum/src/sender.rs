@@ -1,5 +1,5 @@
-//! Sends a mail through msmtp, the SMTP client the launcher installs with this application. The
-//! account is written for each mail in a file only this process can read, removed right after.
+//! Invio e verifica della connessione SMTP tramite msmtp. La configurazione temporanea
+//! è leggibile solo dal processo e viene rimossa al termine.
 
 use crate::{
     message::Message,
@@ -90,6 +90,15 @@ async fn write_private(path: &Path, text: &str) -> Result<(), String> {
 
 /// Hands the mail to msmtp and waits for its verdict.
 pub async fn send(program: &Path, smtp: &Smtp, message: &Message<'_>) -> Result<(), String> {
+    execute(program, smtp, Some(message)).await
+}
+
+/// Verifica il collegamento SMTP e TLS senza inviare messaggi.
+pub async fn check_connection(program: &Path, smtp: &Smtp) -> Result<(), String> {
+    execute(program, smtp, None).await
+}
+
+async fn execute(program: &Path, smtp: &Smtp, message: Option<&Message<'_>>) -> Result<(), String> {
     if !available(program) {
         return Err("msmtp is not installed on the NAS.".to_owned());
     }
@@ -104,18 +113,26 @@ pub async fn send(program: &Path, smtp: &Smtp, message: &Message<'_>) -> Result<
     result
 }
 
-async fn run(program: &Path, account: &Path, message: &Message<'_>) -> Result<(), String> {
+async fn run(program: &Path, account: &Path, message: Option<&Message<'_>>) -> Result<(), String> {
     let mut child = Command::new(program)
         .arg("-C")
         .arg(account)
-        .arg("-t")
-        .stdin(Stdio::piped())
+        .arg(if message.is_some() {
+            "-t"
+        } else {
+            "--serverinfo"
+        })
+        .stdin(if message.is_some() {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        })
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .kill_on_drop(true)
         .spawn()
         .map_err(|error| format!("Unable to start msmtp: {error}"))?;
-    if let Some(mut input) = child.stdin.take() {
+    if let (Some(message), Some(mut input)) = (message, child.stdin.take()) {
         input
             .write_all(message.render().as_bytes())
             .await
@@ -134,7 +151,7 @@ async fn run(program: &Path, account: &Path, message: &Message<'_>) -> Result<()
         .rev()
         .find(|line| !line.trim().is_empty())
         .map_or_else(
-            || "msmtp could not send the mail.".to_owned(),
+            || "msmtp could not complete the SMTP request.".to_owned(),
             |line| line.trim().to_owned(),
         ))
 }

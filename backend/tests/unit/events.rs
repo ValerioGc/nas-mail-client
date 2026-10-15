@@ -196,12 +196,6 @@ fn system_updates_are_filtered_by_the_level_chosen() {
 }
 
 #[test]
-fn the_test_mail_speaks_the_language_of_the_settings() {
-    assert_eq!(test_mail(Language::It).subject, "Mail di prova dal NAS");
-    assert_eq!(test_mail(Language::En).category, Category::Test);
-}
-
-#[test]
 fn a_code_mail_names_its_purpose_and_its_code() {
     let (subject, body) = code_mail(Language::It, "verify", "042137").expect("verify");
     assert_eq!(subject, "Verifica dell’indirizzo di recupero del NAS");

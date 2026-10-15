@@ -167,7 +167,7 @@ async fn send(
     .map_err(ApiError::internal)
 }
 
-async fn send_test(State(state): State<AppState>) -> Result<Json<Mail>, ApiError> {
+async fn check_connection(State(state): State<AppState>) -> Result<StatusCode, ApiError> {
     let settings = settings::load(&state.database, &state.cipher)
         .await
         .map_err(ApiError::internal)?;
@@ -176,9 +176,13 @@ async fn send_test(State(state): State<AppState>) -> Result<Json<Mail>, ApiError
             "Configure the SMTP server, the sender and a recipient first.",
         ));
     }
-    send(&state, &settings, &events::test_mail(settings.language))
+    sender::check_connection(&state.msmtp, &settings.smtp)
         .await
-        .map(Json)
+        .map_err(|message| ApiError {
+            status: StatusCode::BAD_GATEWAY,
+            message,
+        })?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// An event of the launcher: answered at once, mailed in the background. A code of the account is
@@ -415,7 +419,7 @@ fn router(state: AppState) -> Router {
         .route("/health", get(health))
         .route("/api/status", get(status))
         .route("/api/settings", get(read_settings).put(save_settings))
-        .route("/api/test", post(send_test))
+        .route("/api/test", post(check_connection))
         .route("/api/mails", get(list_mails))
         .route("/api/mails/{id}", delete(delete_mail))
         .route("/api/mails/{id}/trash", post(trash_mail))

@@ -7,7 +7,7 @@ import {
   fetchStatus,
   moveMail,
   saveSettings,
-  sendTestMail,
+  checkSmtpConnection,
 } from '@/services/mailApi';
 import { answer, mail, mailSettings, settingsView } from '@tests/fixtures/mail';
 
@@ -38,16 +38,16 @@ it('reads the status, the settings and a folder from relative endpoints', async 
   ]);
 });
 
-it('saves the settings as JSON and sends the test mail', async () => {
+it('saves the settings as JSON and checks the connection without requesting a mail', async () => {
   const settings = mailSettings();
-  const fetcher = stub(answer(settingsView()), answer(mail({ category: 'test' })));
+  const fetcher = stub(answer(settingsView()), answer(undefined, 204));
   await saveSettings(settings);
   expect(fetcher).toHaveBeenNthCalledWith(1, 'api/settings', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(settings),
   });
-  await expect(sendTestMail()).resolves.toMatchObject({ category: 'test' });
+  await expect(checkSmtpConnection()).resolves.toBeUndefined();
   expect(fetcher).toHaveBeenLastCalledWith('api/test', { method: 'POST' });
 });
 

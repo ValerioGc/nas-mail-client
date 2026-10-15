@@ -217,26 +217,6 @@ pub fn code_mail(language: Language, purpose: &str, code: &str) -> Option<(Strin
     Some((subject.to_owned(), format!("{body} {code}.\n\n{ignore}")))
 }
 
-/// The test mail sent from the SMTP section.
-pub fn test_mail(language: Language) -> Composed {
-    let it = language == Language::It;
-    Composed {
-        category: Category::Test,
-        subject: if it {
-            "Mail di prova dal NAS"
-        } else {
-            "Test mail from the NAS"
-        }
-        .to_owned(),
-        body: if it {
-            "Mail di prova inviata dal NAS con il server di posta configurato."
-        } else {
-            "Test mail sent by the NAS through the configured mail server."
-        }
-        .to_owned(),
-    }
-}
-
 #[cfg(test)]
 #[path = "../../tests/unit/events.rs"]
 mod tests;

@@ -3,14 +3,14 @@ import { flushPromises, mount } from '@vue/test-utils';
 import SmtpSettings from '@/components/settings/SmtpSettings.vue';
 import { useMailSettings } from '@/composables/useMailSettings';
 import { messages } from '@/i18n';
-import { fetchStatus, saveSettings, sendTestMail } from '@/services/mailApi';
-import { mail, settingsView } from '@tests/fixtures/mail';
+import { fetchStatus, saveSettings, checkSmtpConnection } from '@/services/mailApi';
+import { settingsView } from '@tests/fixtures/mail';
 
 vi.mock('@/services/mailApi', () => ({
   fetchSettings: vi.fn(),
   fetchStatus: vi.fn(),
   saveSettings: vi.fn(),
-  sendTestMail: vi.fn(),
+  checkSmtpConnection: vi.fn(),
 }));
 
 const t = messages.it.smtp;
@@ -53,18 +53,20 @@ it('fills the form from the settings and saves what was typed, password only whe
   expect(vi.mocked(saveSettings).mock.lastCall?.[0].smtp.password).toBe('new-secret');
 });
 
-it('sends a test mail and says how it went', async () => {
-  vi.mocked(sendTestMail)
-    .mockResolvedValueOnce(mail({ category: 'test' }))
-    .mockResolvedValueOnce(mail({ status: 'failed', error: 'refused' }))
+it('checks the connection and reports success or the connection error', async () => {
+  vi.mocked(checkSmtpConnection)
+    .mockResolvedValueOnce(undefined)
+    .mockRejectedValueOnce(new Error('refused'))
     .mockRejectedValueOnce(new Error('offline'));
   const wrapper = mount(SmtpSettings);
   await flushPromises();
   const test = () => wrapper.get('[data-testid="smtp_test"]').trigger('click');
+  expect(wrapper.get('[data-testid="smtp_test"]').text()).toBe('Prova collegamento');
 
   await test();
   await flushPromises();
-  expect(wrapper.get('output').text()).toBe(t.testSent);
+  expect(wrapper.get('output').text()).toBe(t.testConnected);
+  expect(checkSmtpConnection).toHaveBeenCalledOnce();
   await test();
   await flushPromises();
   expect(wrapper.get('[role="alert"]').text()).toBe(t.testFailed.replace('{error}', 'refused'));

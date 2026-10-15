@@ -66,9 +66,9 @@ async fn settings_are_validated_saved_and_shown_without_the_password() {
 }
 
 #[tokio::test]
-async fn a_test_mail_needs_a_configuration_and_is_kept_with_its_outcome() {
+async fn a_connection_check_needs_settings_and_never_records_a_mail() {
     let state = state(PathBuf::from("/no/msmtp")).await;
-    let refused = send_test(State(state.clone()))
+    let refused = check_connection(State(state.clone()))
         .await
         .expect_err("not configured");
     assert_eq!(refused.status, StatusCode::BAD_REQUEST);
@@ -76,20 +76,30 @@ async fn a_test_mail_needs_a_configuration_and_is_kept_with_its_outcome() {
     settings::save(&state.database, &state.cipher, configured())
         .await
         .expect("save");
-    let Json(failed) = send_test(State(state.clone())).await.expect("recorded");
-    assert_eq!(failed.status, "failed");
-    assert_eq!(
-        failed.error.as_deref(),
-        Some("msmtp is not installed on the NAS.")
-    );
+    let failed = check_connection(State(state.clone()))
+        .await
+        .expect_err("missing msmtp");
+    assert_eq!(failed.status, StatusCode::BAD_GATEWAY);
+    assert_eq!(failed.message, "msmtp is not installed on the NAS.");
+    assert!(mails::list(&state.database, Folder::Sent)
+        .await
+        .expect("list")
+        .is_empty());
 
     let working = AppState {
         msmtp: accepting(),
         ..state
     };
-    let Json(sent) = send_test(State(working.clone())).await.expect("sent");
-    assert_eq!(sent.status, "sent");
-    assert_eq!(sent.category, "test");
+    assert_eq!(
+        check_connection(State(working.clone()))
+            .await
+            .expect("connected"),
+        StatusCode::NO_CONTENT
+    );
+    assert!(mails::list(&working.database, Folder::Sent)
+        .await
+        .expect("list")
+        .is_empty());
 }
 
 #[tokio::test]
