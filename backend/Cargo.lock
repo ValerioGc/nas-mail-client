@@ -872,7 +872,7 @@ dependencies = [
 
 [[package]]
 name = "nas-mail-client-axum"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "aes-gcm",
  "axum",
