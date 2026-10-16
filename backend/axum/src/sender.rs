@@ -1,5 +1,5 @@
-//! Invio e verifica della connessione SMTP tramite msmtp. La configurazione temporanea
-//! è leggibile solo dal processo e viene rimossa al termine.
+//! Sending and SMTP connection checks through msmtp. The temporary configuration is readable
+//! only by the process and is removed at the end.
 
 use crate::{
     message::Message,
@@ -93,7 +93,7 @@ pub async fn send(program: &Path, smtp: &Smtp, message: &Message<'_>) -> Result<
     execute(program, smtp, Some(message)).await
 }
 
-/// Verifica il collegamento SMTP e TLS senza inviare messaggi.
+/// Checks the SMTP and TLS connection without sending a message.
 pub async fn check_connection(program: &Path, smtp: &Smtp) -> Result<(), String> {
     execute(program, smtp, None).await
 }

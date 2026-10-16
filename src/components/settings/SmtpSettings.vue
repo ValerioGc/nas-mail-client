@@ -55,7 +55,7 @@ onMounted(async () => {
   try {
     msmtp.value = (await fetchStatus()).msmtp;
   } catch {
-    // Il controllo della connessione segnala anche l'eventuale programma mancante.
+    // The connection check also reports a missing program.
   }
 });
 
