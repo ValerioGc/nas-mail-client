@@ -3,7 +3,7 @@
   "app": {
     "id": "nas-mail-client",
     "name": "Email",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "icon": "icon.svg",
     "category": "system",
     "system": false
