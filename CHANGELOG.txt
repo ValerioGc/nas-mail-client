@@ -1,0 +1,94 @@
+# Changelog
+
+All notable changes to nas-mail-client are documented in this file.
+
+## [Unreleased]
+
+### Changed
+
+- The Rust tests moved from `backend/tests/` into the package they test (`backend/axum/tests/`),
+  which has `autotests = false`: rust-analyzer loads only the files of the package and reported the
+  test modules as unresolved (E0583), although they built and passed.
+- Development dependencies updated as Dependabot proposed (Vite 8.3.4, Vitest 5.0.4, Playwright 1.64,
+  ESLint 10.12, Prettier 3.9.10, postcss-combine-duplicated-selectors 11 and the others), TypeScript
+  kept at 6.0.3; in the pipelines actions/setup-node 7.1.0, upload-artifact 7.0.2 and
+  download-artifact 8.0.2; serde_json 1.0.154, tokio 1.53.3 and hyper 1.12.0.
+
+## [0.1.5]
+
+### Security
+
+- The socket of the app answers the launcher only (root, the owner of the folder of the sockets, or
+  the app itself): another app of the NAS can no longer reach its API with headers it made up
+  (`launcher_only.rs`).
+
+## [0.1.4]
+
+### Changed
+
+- Maintenance release.
+
+## [0.1.3]
+
+### Changed
+
+- The texts of the interface, in Italian and English, are impersonal and shorter: no ellipsis,
+  colon or semicolon, no names of internal programs, commands or variables.
+- The scrollbars come from the shared library, which shows only their thumb: no arrows and no
+  track.
+- The first configuration has only its title and a shorter description; the explanation of the
+  server and the hint under it are gone, here and in the settings. Each field of the server has a
+  `name`, for the browser to fill it in.
+
+### Removed
+
+- The unused icons `update.svg`, `access.svg`, `system.svg` and the unused text `folders.subject`.
+
+## [0.1.2]
+
+### Added
+
+- A mail when the automatic check of the launcher finds new versions of the installed applications
+  (`appUpdatesAvailable`), with its own switch. The mails of that kind are filed as `apps`: the
+  `CHECK` of the `mails` table changed, so an existing database does not open: install from
+  scratch.
+
+### Changed
+
+- The files of `assets/`, with a hash of their content in the name, are served with
+  `Cache-Control: public, max-age=31536000, immutable`, the page with `no-cache`: the browser keeps
+  the scripts and the styles between visits instead of asking for them again through the gateway
+  and the launcher.
+- Without an account that can send, the application shows only its first configuration. Then the
+  aside has the folders and, at the bottom, the settings: a modal with the account and the
+  notifications, each automatic mail with the switch of the NAS applications.
+- The icons are masks in the colour of their text, so they follow the theme.
+- The manifest files the application under the `system` category.
+- The launcher bridge, the shared styles, the layout with its sidebar, icons, switches, the
+  confirmation dialog, the empty folder, the native dialog under `CommonModal` and the build,
+  package and release scripts come from the shared library `@valeriogc/nas-base-app`.
+
+## [0.1.1]
+
+### Added
+
+- With an account configured and at least one notification on, the application tells the launcher
+  it works without its window (`run.background`): it starts with the NAS and stays on when its
+  window closes, at a lower priority. Without, it stops with its window as before.
+
+### Changed
+
+- The tables are `STRICT`, and the index of the folders follows the order the sent mails are read
+  in. An existing database does not open: install from scratch.
+- In the frame of the launcher the application keeps the rules of its old sandbox by itself
+  (`src/services/frameGuard.ts`, called first in `main.ts`): no window of its own, no
+  `alert`/`confirm`/`prompt` dialog, no navigation of the page that holds it. The launcher dropped
+  the sandbox, which on its origin was no wall and made the browser warn: nothing else changes.
+
+## [0.1.0]
+
+### Added
+
+- SMTP configuration through msmtp, installed on the NAS with the application.
+- Mails for refused sign-ins, launcher updates and system updates, each chosen in its own section.
+- Sent mail and trash.

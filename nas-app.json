@@ -1,0 +1,31 @@
+{
+  "manifest_version": 1,
+  "app": {
+    "id": "nas-mail-client",
+    "name": "Mail client",
+    "version": "0.9.0",
+    "icon": "icon.svg",
+    "category": "system",
+    "system": false
+  },
+  "run": {
+    "exec": "bin/nas-mail-client-axum",
+    "socket": "/run/nas-os/apps/nas-mail-client.sock",
+    "background": true
+  },
+  "ui": {
+    "protocol": 1
+  },
+  "provides": [
+    {
+      "capability": "mail-events",
+      "version": 1,
+      "endpoint": "/internal/events"
+    }
+  ],
+  "permissions": {
+    "paths": [],
+    "network": ["smtp"],
+    "packages": ["msmtp"]
+  }
+}
