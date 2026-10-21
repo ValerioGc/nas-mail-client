@@ -70,7 +70,7 @@ function confirmed() {
   const id = selectedId.value;
   const what = confirming.value;
   confirming.value = null;
-  
+
   if (what === 'empty') {
     void act(emptyTrash);
   } else if (id !== null) {

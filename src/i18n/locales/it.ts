@@ -41,8 +41,7 @@ export const it = {
   },
   setup: {
     title: 'Configura l’app Email',
-    intro:
-      'Server di posta in uscita, mittente e destinatari delle mail inviate dal NAS.',
+    intro: 'Server di posta in uscita, mittente e destinatari delle mail inviate dal NAS.',
     save: 'Salva e continua',
   },
   settings: {
@@ -53,7 +52,8 @@ export const it = {
     },
   },
   smtp: {
-    msmtpMissing: 'Servizio invio posta non installato. È necessario reinstallare l’app Email dal Gestore applicazioni.',
+    msmtpMissing:
+      'Servizio invio posta non installato. È necessario reinstallare l’app Email dal Gestore applicazioni.',
     host: 'Server',
     port: 'Porta',
     security: 'Sicurezza',

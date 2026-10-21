@@ -6,6 +6,6 @@ import { locale, messages, setLocale } from '@/i18n';
 export function useNasLauncherContext() {
   const { active } = useLauncherContext({ onLocaleChange: setLocale });
   const t = computed(() => messages[locale.value]);
-  
+
   return { locale, t, active };
 }
