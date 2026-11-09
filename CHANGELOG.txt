@@ -2,6 +2,12 @@
 
 All notable changes to nas-mail-client are documented in this file.
 
+## [0.9.1]
+
+### Changed
+
+- Maintenance release.
+
 ## [0.9.0]
 
 ### Changed
