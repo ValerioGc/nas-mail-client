@@ -1,6 +1,5 @@
 mod events;
 mod launcher;
-mod launcher_only;
 mod mails;
 mod message;
 mod sender;
@@ -13,24 +12,24 @@ mod support;
 use aes_gcm::Aes256Gcm;
 use axum::{
     extract::{Path as UrlPath, Query, State},
-    http::{header, StatusCode, Uri},
+    http::{StatusCode, Uri},
     response::{IntoResponse, Response},
     routing::{delete, get, post},
     Json, Router,
 };
 use mails::{Folder, Mail, Outgoing};
+use nas_app_core::prepare_socket;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use settings::Settings;
 use sqlx::SqlitePool;
 use std::{
     env,
-    os::unix::fs::FileTypeExt,
-    path::{Component, Path, PathBuf},
+    path::PathBuf,
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
-use tokio::net::{UnixListener, UnixStream};
+use tokio::net::UnixListener;
 
 #[derive(Clone)]
 struct AppState {
@@ -63,7 +62,7 @@ impl ApiError {
     }
 
     fn internal(error: impl std::fmt::Display) -> Self {
-        eprintln!("Mail client error: {error}");
+        eprintln!("mail client error ({error})");
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,
             message: "Unable to access the mail data".to_owned(),
@@ -199,7 +198,7 @@ async fn receive_event(
     }
     tokio::spawn(async move {
         if let Err(error) = mail_event(&state, &event).await {
-            eprintln!("Mail for {} not sent: {}", event.key, error.message);
+            eprintln!("mail for {} not sent ({})", event.key, error.message);
         }
     });
     StatusCode::ACCEPTED.into_response()
@@ -338,69 +337,10 @@ fn ui_dir() -> Result<PathBuf, String> {
 }
 
 async fn static_file(State(state): State<AppState>, uri: Uri) -> Response {
-    let path = uri.path();
-    if path.starts_with("/api/") || path == "/api" || path.starts_with("/internal") {
+    if uri.path().starts_with("/internal") {
         return StatusCode::NOT_FOUND.into_response();
     }
-    let requested = if path == "/" {
-        "index.html"
-    } else {
-        &path[1..]
-    };
-    let relative = Path::new(requested);
-    if !relative
-        .components()
-        .all(|component| matches!(component, Component::Normal(_)))
-    {
-        return StatusCode::BAD_REQUEST.into_response();
-    }
-    let file = state.ui_dir.join(relative);
-    let mime = match file
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .unwrap_or_default()
-    {
-        "html" => "text/html; charset=utf-8",
-        "js" => "text/javascript; charset=utf-8",
-        "css" => "text/css; charset=utf-8",
-        "svg" => "image/svg+xml",
-        "png" => "image/png",
-        "webp" => "image/webp",
-        "ico" => "image/x-icon",
-        "woff2" => "font/woff2",
-        _ => "application/octet-stream",
-    };
-    // Hashed files in assets are cached forever, every other file is revalidated.
-    let cache = if requested.starts_with("assets/") {
-        "public, max-age=31536000, immutable"
-    } else {
-        "no-cache"
-    };
-    match tokio::fs::read(file).await {
-        Ok(bytes) => (
-            [(header::CONTENT_TYPE, mime), (header::CACHE_CONTROL, cache)],
-            bytes,
-        )
-            .into_response(),
-        Err(_) => StatusCode::NOT_FOUND.into_response(),
-    }
-}
-
-async fn prepare_socket(path: &Path) -> Result<(), String> {
-    if let Ok(metadata) = tokio::fs::symlink_metadata(path).await {
-        if !metadata.file_type().is_socket() {
-            return Err(format!("Socket path is occupied: {}", path.display()));
-        }
-        match UnixStream::connect(path).await {
-            Ok(_) => return Err(format!("Socket is already listening: {}", path.display())),
-            Err(error) if error.kind() == std::io::ErrorKind::ConnectionRefused => {}
-            Err(error) => return Err(format!("Unable to check socket: {error}")),
-        }
-        tokio::fs::remove_file(path)
-            .await
-            .map_err(|error| error.to_string())?;
-    }
-    Ok(())
+    nas_app_core::serve_static(&state.ui_dir, uri.path()).await
 }
 
 async fn shutdown() {
@@ -462,11 +402,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let state = state.clone();
         async move { declare_background(&state).await }
     });
-    let result = axum::serve(launcher_only::LauncherOnly::new(listener), router(state))
+    let result = axum::serve(nas_app_core::LauncherOnly::new(listener), router(state))
         .with_graceful_shutdown(shutdown())
         .await;
     if let Err(error) = tokio::fs::remove_file(&path).await {
-        eprintln!("Unable to remove socket: {error}");
+        eprintln!("unable to remove the socket ({error})");
     }
     result?;
     Ok(())
